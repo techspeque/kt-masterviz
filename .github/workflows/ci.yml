@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    # Avoid double-runs: skip pull_request events for branches in the same repo
+    # (the push event already triggered the same CI for that commit). PRs from
+    # forks still run because push events don't fire for them.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      # Playwright browsers live outside the venv, so they're not covered
+      # by the uv cache. Hashing uv.lock + pyproject.toml ensures the
+      # cache busts when the playwright version changes (which determines
+      # the required chromium build).
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('uv.lock', 'pyproject.toml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Run CI
+        run: bash scripts/ci.sh

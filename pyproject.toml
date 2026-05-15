@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kt-masterviz"
+dynamic = ["version"]
+description = "Live Streamlit dashboard for kt-masterlog master CSV files. Companion to kt-masterlog."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+authors = [{ name = "Adam" }]
+keywords = ["keras-tuner", "hyperparameter-optimization", "visualization", "streamlit", "dashboard"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+dependencies = [
+    "pandas>=2.0",
+    "streamlit>=1.28",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "playwright>=1.40",
+    "git-cliff>=2.0",
+]
+
+[project.scripts]
+kt-masterviz = "kt_masterviz.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/techspeque/kt-masterviz"
+Issues = "https://github.com/techspeque/kt-masterviz/issues"
+
+[dependency-groups]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "playwright>=1.40",
+    "git-cliff>=2.0",
+]
+
+[tool.hatch.version]
+path = "src/kt_masterviz/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kt_masterviz"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
