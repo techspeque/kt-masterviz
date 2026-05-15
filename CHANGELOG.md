@@ -7,6 +7,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 and entries are generated automatically from conventional commits by
 [git-cliff](https://git-cliff.org).
 
+## [0.1.1](https://github.com/techspeque/kt-masterviz/compare/v0.1.0...v0.1.1) - 2026-05-15
+
+
+### Added
+
+- Redraw training curves in Altair with proper epoch ticks
+
+
 ## [0.1.0](https://github.com/techspeque/kt-masterviz/releases/tag/v0.1.0) - 2026-05-15
 
 
