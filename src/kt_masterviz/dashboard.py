@@ -18,6 +18,7 @@ import sys
 import time
 from pathlib import Path
 
+import altair as alt
 import streamlit as st
 
 from kt_masterviz.loader import (
@@ -29,6 +30,10 @@ from kt_masterviz.registry import list_runs
 
 
 SELECTED_KEY = "selected_csv_path"
+# Set by the sidebar "Switch run" button. Forces the picker even when the
+# CLI was invoked with an explicit CSV path or --latest — without this,
+# Switch run would no-op back to the same argv-provided CSV.
+FORCE_PICKER_KEY = "force_picker"
 
 
 def _argv_csv_path() -> Path | None:
@@ -39,7 +44,13 @@ def _argv_csv_path() -> Path | None:
 
 
 def _resolve_csv_path() -> Path | None:
-    """Picker selections live in session_state; argv is the launch-time path."""
+    """Resolution order:
+    1. The "Switch run" override (force picker, regardless of argv).
+    2. The user's explicit picker selection from this session.
+    3. The CSV path the CLI was launched with.
+    """
+    if st.session_state.get(FORCE_PICKER_KEY):
+        return None
     if SELECTED_KEY in st.session_state:
         return Path(st.session_state[SELECTED_KEY])
     return _argv_csv_path()
@@ -88,6 +99,9 @@ def _render_picker() -> None:
     if st.button("Open"):
         idx = labels.index(choice)
         st.session_state[SELECTED_KEY] = runs[idx].csv_path
+        # Picker selection wins over the "force picker" flag set by
+        # Switch run; clear it so the new selection actually renders.
+        st.session_state.pop(FORCE_PICKER_KEY, None)
         st.rerun()
 
 
@@ -101,6 +115,10 @@ def _render_viewer(csv_path: Path) -> None:
         st.divider()
         if st.button("Switch run"):
             st.session_state.pop(SELECTED_KEY, None)
+            # Force picker even when argv supplied an explicit CSV path —
+            # otherwise the resolver would fall back to argv and the
+            # button would visibly do nothing.
+            st.session_state[FORCE_PICKER_KEY] = True
             st.rerun()
 
     if not csv_path.exists():
@@ -143,10 +161,35 @@ def _render_viewer(csv_path: Path) -> None:
             st.subheader("Training curves")
             if metric_cols:
                 metric = st.selectbox("Metric", metric_cols)
-                chart_data = df.pivot(
-                    index="epoch", columns="trial_id", values=metric
+                # Altair chart with X ticks pinned to the actual epoch
+                # integers in the data. Altair's auto-tick placement on a
+                # small numeric range inserts half-integer ticks (1.5,
+                # 2.5) that look like duplicate integer labels once
+                # `format="d"` truncates them. Passing explicit `values`
+                # eliminates that entirely. If a run has lots of epochs
+                # (>30) the labels start to crowd; the `labelOverlap`
+                # setting lets d3 thin them automatically.
+                chart_df = df[["trial_id", "epoch", metric]].copy()
+                chart_df["trial_id"] = chart_df["trial_id"].astype(str)
+                epoch_ticks = sorted(chart_df["epoch"].unique().tolist())
+                chart = (
+                    alt.Chart(chart_df)
+                    .mark_line(point=True)
+                    .encode(
+                        x=alt.X(
+                            "epoch:Q",
+                            title="Epoch",
+                            axis=alt.Axis(
+                                values=epoch_ticks,
+                                format="d",
+                                labelOverlap="greedy",
+                            ),
+                        ),
+                        y=alt.Y(f"{metric}:Q", title=metric),
+                        color=alt.Color("trial_id:N", title="trial_id"),
+                    )
                 )
-                st.line_chart(chart_data)
+                st.altair_chart(chart, width="stretch")
             else:
                 st.info("No metric columns detected in this CSV.")
 
